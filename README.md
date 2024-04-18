@@ -8,6 +8,13 @@
 
 
 1. I/Oポート
+
+|header1|header2|header3|
+|:--|--:|:--:|
+|align left|align right|align center|
+|a|b|c|
+
+
 |I/O|アドレス|用途|
 |:--|--:|:--:|
 |OUT|$00|ラインデータ #0|
