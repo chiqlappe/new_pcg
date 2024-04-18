@@ -8,6 +8,7 @@
 
 VRAM		equ	$F300
 VRAM_ROW_SIZE	equ	120
+BLINK		equ	%00000010	;"点滅"アトリビュート
 
 SYS_CLS		equ	$045A
 SYS_WIDTH	equ	$0843
@@ -42,9 +43,6 @@ START:
 	LD	HL,.MESSAGE
 	LD	BC,24
 	LDIR
-
-	LD	A,%00000010		;="BLINK"
-	LD	($FE91),A		;最下行のアトリビュート
 
 .L3:	LD	HL,DATA1
 	CALL	.SUB
@@ -238,7 +236,6 @@ SET_ATRB:
 .DAT:	db	0,0,2,%11101000,8,%00000100,72,%00000000
 
 
-
 ;-------------------------------
 ;画面初期化
 ;-------------------------------
@@ -249,6 +246,10 @@ INI_SCREEN:
 	LD	HL,.CON
 	CALL	SYS_CONSOLE
 	CALL	SET_ATRB
+
+	LD	A,BLINK
+	LD	($FE91),A		;最下行のアトリビュート
+
 	RET
 
 .WH:	db	"40,25",0
