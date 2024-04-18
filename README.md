@@ -9,11 +9,6 @@
 
 1. I/Oポート
 
-|:--|--:|:--:|
-|align left|align right|align center|
-|a|b|c|
-
-
 |header1|header2|header3|
 |:--|:--|:--|
 |I/O|アドレス|用途|
