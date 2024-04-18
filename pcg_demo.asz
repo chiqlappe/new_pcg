@@ -1,0 +1,272 @@
+
+;===============================
+;新PCG動作確認用プログラム
+;
+;2024/04/18 @chiqlappe
+;===============================
+
+
+VRAM		equ	$F300
+VRAM_ROW_SIZE	equ	120
+
+SYS_CLS		equ	$045A
+SYS_WIDTH	equ	$0843
+SYS_CONSOLE	equ	$0884
+
+PCG_PORT	equ	$00
+PCG_VRTC_MAX	equ	36
+
+BANK0		equ	%00000000
+BANK1		equ	%00000001
+BANK2		equ	%00000010
+BANK3		equ	%00000011
+BLOCK		equ	%00001000	;ブロックモード
+PCG		equ	%00000100	;PCGモード
+
+
+	org	$9000
+
+START:
+	CALL	INI_SCREEN
+
+	LD	HL,VRAM+8
+	CALL	DRAW_CHRS
+
+	LD	HL,VRAM+VRAM_ROW_SIZE*8+8
+	CALL	DRAW_CHRS
+
+	LD	HL,VRAM+VRAM_ROW_SIZE*16+8
+	CALL	DRAW_CHRS
+
+	LD	DE,$F300+VRAM_ROW_SIZE*24+28
+	LD	HL,.MESSAGE
+	LD	BC,24
+	LDIR
+
+	LD	A,%00000010		;="BLINK"
+	LD	($FE91),A		;最下行のアトリビュート
+
+.L3:	LD	HL,DATA1
+	CALL	.SUB
+
+	LD	HL,DATA2
+	CALL	.SUB
+
+	LD	HL,DATA3
+	CALL	.SUB
+
+	JR	.L3
+
+
+.SUB:	LD	A,PCG+BLOCK+BANK0	;バンク#0
+	OUT	(PCG_PORT+8),A
+	CALL	SET_IMAGE
+
+	LD	A,PCG+BLOCK+BANK1	;バンク#1
+	OUT	(PCG_PORT+8),A
+	CALL	SET_IMAGE
+
+	LD	A,PCG+BLOCK+BANK2	;バンク#2
+	OUT	(PCG_PORT+8),A
+	CALL	SET_IMAGE
+
+	CALL	SET_ATRB
+	CALL	WAIT
+
+	RET
+
+.MESSAGE:
+	db	"N e w   P C G   D e m o "
+
+
+;-------------------------------
+;ウェイト処理
+;-------------------------------
+WAIT:
+	LD	A,16
+.L3:	LD	C,0
+.L2:	LD	B,0
+.L1:	DJNZ	.L1
+	DEC	C
+	JR	NZ,.L2
+	DEC	A
+	JR	NZ,.L3
+
+	RET
+
+
+;-------------------------------
+;0~255のキャラクタデータをPCGに登録する
+;-------------------------------
+SET_IMAGE:
+	XOR	A
+
+.L2:	PUSH	AF
+	CALL	WAIT_VRTC
+	POP	AF
+
+	LD	B,PCG_VRTC_MAX
+
+.L1:	PUSH	AF
+	PUSH	BC
+	CALL	PCG_SET
+	POP	BC
+	POP	AF
+	INC	A
+	RET	Z
+
+	DJNZ	.L1
+	JR	.L2
+
+
+;-----------------------------
+;PCG表示用のキャラクタを出力する
+;in	HL=書き込み先のアドレス
+;-----------------------------
+DRAW_CHRS:
+	LD	C,8		;行数
+	XOR	A		;キャラクタコード
+
+.L2:	PUSH	HL
+	CALL	.SUB
+	POP	HL
+	LD	DE,VRAM_ROW_SIZE
+	ADD	HL,DE
+	DEC	C
+	JR	NZ,.L2
+	RET
+
+.SUB:	LD	B,32		;桁数
+.L3:	LD	(HL),A
+	INC	HL
+	INC	HL
+	INC	A
+	DJNZ	.L3
+	RET
+
+
+;-----------------------------
+;垂直帰線同期処理
+;-----------------------------
+WAIT_VRTC:
+.L1:	IN	A,($40)
+	AND	$20
+	JR	NZ,.L1
+.L2:	IN	A,($40)
+	AND	$20
+	JR	Z,.L2
+	RET
+
+
+;-------------------------------
+;in	A=キャラクタコード,HL=キャラクタデータの先頭アドレス
+;out	HL
+;-------------------------------
+PCG_SET:
+
+	LD	B,A
+	LD	C,PCG_PORT	;ポートアドレス
+
+	LD	A,(HL)		;ラインデータ#0
+	INC	HL
+	OUT	(C),A
+	INC	C
+
+	LD	A,(HL)		;ラインデータ#1
+	INC	HL
+	OUT	(C),A
+	INC	C
+
+	LD	A,(HL)		;ラインデータ#2
+	INC	HL
+	OUT	(C),A
+	INC	C
+
+	LD	A,(HL)		;ラインデータ#3
+	INC	HL
+	OUT	(C),A
+	INC	C
+
+	LD	A,(HL)		;ラインデータ#4
+	INC	HL
+	OUT	(C),A
+	INC	C
+
+	LD	A,(HL)		;ラインデータ#5
+	INC	HL
+	OUT	(C),A
+	INC	C
+
+	LD	A,(HL)		;ラインデータ#6
+	INC	HL
+	OUT	(C),A
+	INC	C
+
+	LD	A,(HL)		;ラインデータ#7
+	INC	HL
+	OUT	(C),A
+
+	RET
+
+
+;-------------------------------
+;アトリビュート設定
+;-------------------------------
+SET_ATRB:
+	LD	DE,VRAM+80
+	LD	B,24
+
+.L1:	PUSH	BC
+	LD	HL,.DAT
+	LD	BC,8
+	LDIR
+	LD	HL,VRAM_ROW_SIZE-8
+	ADD	HL,DE
+	EX	DE,HL
+
+	POP	BC
+	DJNZ	.L1
+
+	LD	HL,.DAT+3	;色を1つずつ進める
+	LD	A,(HL)
+	ADD	A,%00100000
+	JR	NC,.L2
+	ADD	A,%00100000
+.L2:	LD	(HL),A
+	RET
+
+.DAT:	db	0,0,2,%11101000,8,%00000100,72,%00000000
+
+
+
+;-------------------------------
+;画面初期化
+;-------------------------------
+INI_SCREEN:
+	CALL	SYS_CLS
+	LD	HL,.WH
+	CALL	SYS_WIDTH
+	LD	HL,.CON
+	CALL	SYS_CONSOLE
+	CALL	SET_ATRB
+	RET
+
+.WH:	db	"40,25",0
+.CON:	db	"0,25,0,1",0
+
+
+
+;-------------------------------
+;画像データ
+;256x192 2bit
+;-------------------------------
+DATA1:
+binclude "venus.raw"
+
+DATA2:
+binclude "sharaku.raw"
+
+DATA3:
+binclude "blue.raw"
+
+
